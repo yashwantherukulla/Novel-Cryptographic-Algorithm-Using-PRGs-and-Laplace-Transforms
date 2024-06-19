@@ -52,7 +52,11 @@ class NCA:
 
     def __get_seq_len(self):
         with open(self.file_path, 'r') as file:
-            return 2*(len(file.read())*3) + len(file.read()) + 7
+            # print(len(file.read()))
+            # print(2*(3*3) + 3 + 7)
+            plain_txt_len = len(file.read())
+            seq_len = plain_txt_len*7 + 7
+            return seq_len
         
     def __get_ops(self):
         ops = []
