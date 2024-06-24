@@ -1,8 +1,13 @@
 import secrets
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
 from cryptography.hazmat.backends import default_backend
 import random
 from math import factorial
+import sympy
+from sympy import symbols, diff, factorial, sympify
+from sympy.integrals import laplace_transform
+from sympy.abc import x, s, a
+
 
 class NCA:
     def __init__(self, file_path):
@@ -88,7 +93,32 @@ class NCA:
         random.shuffle(enc_wo_s)
         enc_w_s = enc_wo_s
         return enc_w_s
+    
+    def __mclaurin_exp(self, fn_str:str, n:int):
+        x = symbols('x')
+        fn = sympify(fn_str)
 
+        expansion = fn.subs(x, 0) #f(0)
+        for i in range(1, n+1):
+            derivative = diff(fn, x, i).subs(x, 0)
+            expansion += (derivative * x**i)/ factorial(i)
+        
+        return expansion
+    
+    def __laplace_trans(self, mc_exp: sympy.core.add.Add):
+        lt = laplace_transform(mc_exp, x, s)
+        return lt
+
+    def __get_laplace_co_effs(self, fn_str:str, n:int):
+        mc_exp = self.__mclaurin_exp(fn_str, n)
+        lt = self.__laplace_trans(mc_exp)[0]
+        coeffs = []
+        
+        for term in lt.as_ordered_terms():
+            coeff = term.as_coeff_mul(s)[0]
+            coeffs.append(coeff)
+
+        return coeffs
 
     def encrypt(self):
         seq_len = self.__get_seq_len(self.file_path)
@@ -99,14 +129,25 @@ if __name__ == '__main__':
     nca = NCA('plain.txt')
     # plain_txt_len = nca._NCA__get_plain_txt_len()
     # print(plain_txt_len)
-    seq_len = nca._NCA__get_seq_len()
-    print(seq_len)
-    print("-------------------")
-    nca._NCA__gen_PRS(seq_len)
-    print(nca.PRS[:7])
-    ops = nca._NCA__get_ops()
-    print(ops)
-    half_enc, skips = nca._NCA__get_encoded_wo_shuffle()
-    print(half_enc, skips)
-    shuffled = nca._NCA__get_shuffled(half_enc, skips)
-    print(shuffled)
+    # seq_len = nca._NCA__get_seq_len()
+    # print(seq_len)
+    # print("-------------------")
+    # nca._NCA__gen_PRS(seq_len)
+    # print(nca.PRS[:7])
+    # ops = nca._NCA__get_ops()
+    # print(ops)
+    # half_enc, skips = nca._NCA__get_encoded_wo_shuffle()
+    # print(half_enc, skips)
+    # shuffled = nca._NCA__get_shuffled(half_enc, skips)
+    # print(shuffled)
+
+    r = 5
+    
+    fn = f"x*exp({r}*x)"
+    n = 4
+    mc_exp = nca._NCA__mclaurin_exp(fn, n)
+    print(mc_exp)
+    lt = nca._NCA__laplace_trans(mc_exp)[0]
+    print(lt , type(lt))
+    lt_coeff = nca._NCA__get_laplace_co_effs(fn, n)
+    print(lt_coeff)
