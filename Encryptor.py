@@ -16,11 +16,15 @@ class Encryptor:
         self.w = op_param[0]
         self.b = op_param[1]
         self.fn_str = fn_str
-        self.cipher_txt = self.__get_text_from_file()
-        # print(self.__get_seq_len())
+        self.plain_txt = self.__get_text_from_file()
+        self.PRS_seed = None
         self.PRS = self.__gen_PRS(self.__get_seq_len())
+        if self.PRS is None:
+            print("Sequence length is too long")
+            return
         # self.PRS = "7101901153000972121087318"
         self.ops = self.__get_ops()
+        
         
     
     def __gen_TRN(self):
@@ -31,8 +35,8 @@ class Encryptor:
 
     def __gen_PRS(self, seq_len: int):
         if seq_len < 4300 and seq_len > 0:
-            seed = self.__gen_TRN()
-            key = seed.to_bytes(32, 'big')
+            self.PRS_seed = self.__gen_TRN()
+            key = self.PRS_seed.to_bytes(32, 'big')
             nonce = (0).to_bytes(16, 'big')
             cipher = Cipher(algorithms.ChaCha20(key, nonce), mode=None, backend=default_backend())
             encryptor = cipher.encryptor()
@@ -55,19 +59,24 @@ class Encryptor:
             return str(prn)
 
 
-        elif seq_len >= 4300:
-            prns = []
-            while len(''.join(prns)) < seq_len:
-                seed = self.__gen_TRN()
-                key = seed.to_bytes(32, 'big')
-                nonce = (0).to_bytes(16, 'big')
-                cipher = Cipher(algorithms.ChaCha20(key, nonce), mode=None, backend=default_backend())
-                encryptor = cipher.encryptor()
-                prn = int.from_bytes(encryptor.update(b'\0' * (1000)), 'big')
-                prn_str = str(prn)
-                prns.append(prn_str)
+        elif seq_len >= 4300: #not working currently
+            return None
+            # prns = []
+            # seeds = []
+            # while len(''.join(prns)) < seq_len:
+            #     seed = self.__gen_TRN()
+            #     seeds.append(seed)
+            #     key = seed.to_bytes(32, 'big')
+            #     nonce = (0).to_bytes(16, 'big')
+            #     cipher = Cipher(algorithms.ChaCha20(key, nonce), mode=None, backend=default_backend())
+            #     encryptor = cipher.encryptor()
+            #     prn = int.from_bytes(encryptor.update(b'\0' * (1000)), 'big')
+            #     prn_str = str(prn)
+            #     prns.append(prn_str)
             
-            PRS_no_XOR =  ''.join(prns)[:seq_len]
+
+
+            # PRS_no_XOR =  ''.join(prns)[:seq_len]
             # add a part where PRS_no_XOR is XORed with the ascii values of the plain text
             # PRS = int(PRS_no_XOR) ^ int(self.plain_txt)
             # return str(PRS)
@@ -85,25 +94,24 @@ class Encryptor:
         
     def __get_ops(self):
         ops = []
-        plain_txt_len = len(self.cipher_txt)
-        ops.append(int(self.PRS[:7]) % 7)
+        plain_txt_len = len(self.plain_txt)
+        ops.append((int(self.PRS[:7]) % 7) + 1)
         for i in range(1, plain_txt_len):
             ops.append((self.w)*ops[i-1] + self.b)
-
         return ops
 
     def __get_decoded_wo_shuffle(self, test:bool=False):
         enc_wo_s = []
         skipped_chunks = 0
         i=0
-        while len(enc_wo_s)<len(self.cipher_txt):
+        while len(enc_wo_s)<len(self.plain_txt):
             chunk = str(self.PRS[7+(3*i)] + self.PRS[7+(3*i+1)] + self.PRS[7+(3*i+2)]) # 7 goes for the op
             if test:
                 print(f"chunk {i} : {chunk} ===> used : {bool(chunk!='000')}")
             
             if chunk!="000":
                 chunk = int(chunk)
-                ascii_val = ord(self.cipher_txt[i-skipped_chunks])
+                ascii_val = ord(self.plain_txt[i-skipped_chunks])
                 enc_wo_s.append(ascii_val + (chunk * self.ops[i-skipped_chunks]))
             else:
                 skipped_chunks += 1
@@ -112,9 +120,8 @@ class Encryptor:
         return enc_wo_s, skipped_chunks
     
     def __get_shuffled(self, enc_wo_s: list, skipped_chunks: int):
-        remaining_digits = self.PRS[:(7+len(self.cipher_txt)+skipped_chunks)]
-        # print(len(remaining_digits))
-        shuffle_seed = int(int(remaining_digits[:4300]) % factorial(len(self.cipher_txt)))
+        remaining_digits = self.PRS[(7+3*(len(self.plain_txt)+skipped_chunks)):]
+        shuffle_seed = int(int(remaining_digits[:4300]) % factorial(len(self.plain_txt))) + 1
         
         random.seed(shuffle_seed)
         random.shuffle(enc_wo_s)
@@ -147,52 +154,51 @@ class Encryptor:
 
         return coeffs
 
-    def encrypt(self):
+    def encrypt(self, write_to_file:bool=True):
         enc_no_shuff, skips = self.__get_decoded_wo_shuffle()
-        # print('1')
         enc_shuff = self.__get_shuffled(enc_no_shuff, skips)
-        # print('2')
         enc_shuff = np.array(enc_shuff)
-        # print(np.where(enc_shuff==0))
-        # print('3')
         lt_co_eff = self.__get_laplace_co_effs(len(enc_shuff))
-        # print('4')
         lt_co_eff = np.array(lt_co_eff)
-        # print(np.where(lt_co_eff==0))
-        # print('5')
         enc_arr = enc_shuff * lt_co_eff
-        # print('6')
-        # print(enc_shuff)
-        # print(lt_co_eff)
-        # print(enc_arr)
 
         all_Q = []
         cipher_text = ""
-        # print(len(enc_arr)) # enc_arr is missing 1 character from the og plain text
+        
         for i in enc_arr:
             R = i%94
             Q = i//94
             letter = chr(R+33)
             all_Q.append(Q)
             cipher_text += letter
-            # print(len(all_Q))
+            
+        
+        keys = {
+            'PRS_seed': self.PRS_seed,
+            'Quotients': all_Q,
+        }
 
-        # print('done')
-        return cipher_text, all_Q
+        if write_to_file:
+            with open('cipher.txt', 'w') as file:
+                file.write(cipher_text)
+
+        return cipher_text, keys
 
 
     def encrypt_test(self):
         self.PRS = "1234567000123456789012345678"
-        self.w = 21
-        self.b = 21
-        self.cipher_txt = "sir"
+        self.w = 173
+        self.b = 833
+        # self.plain_txt = "sir"
+        
         self.ops = self.__get_ops()
 
-        print('plain text : ' + self.cipher_txt)
+        print('plain text : ' + self.plain_txt)
         print(f"w : {self.w}")
         print(f"b : {self.b}")
         print(f"--------------------")
         print(f"Pseudo Random Sequence : {self.PRS}")
+        print(f"initial operator : {int((self.PRS[:7]) % 7)+1}")
         print(f"all operators : {self.ops}")
 
         print("--------------------")
@@ -227,35 +233,11 @@ class Encryptor:
 
 
 if __name__ == '__main__':
-    # plain_txt_len = nca._NCA__get_plain_txt_len()
-    # print(plain_txt_len)
-    # seq_len = nca._NCA__get_seq_len()
-    # print(seq_len)
-    # print("-------------------")
-    # nca._NCA__gen_PRS(seq_len)
-    # print(nca.PRS[:7])
-    # ops = nca._NCA__get_ops()
-    # print(ops)
-    # half_enc, skips = nca._NCA__get_encoded_wo_shuffle()
-    # print(half_enc, skips)
-    # shuffled = nca._NCA__get_shuffled(half_enc, skips)
-    # print(shuffled)
-
     r = 2
-
     fn = f"x*exp({r}*x)"
     
     nca = Encryptor('plain.txt', fn, (173, 833))
-    # mc_exp = nca._NCA__mclaurin_exp(fn, n)
-    # print(mc_exp)
-    # lt = nca._NCA__laplace_trans(mc_exp)[0]
-    # print(lt , type(lt))
-    # lt_coeff = nca._NCA__get_laplace_co_effs(fn, n)
-    # print(lt_coeff)
-    # ct, qs = nca.encrypt()
-    # # print(ct)
-    # # print(qs)
-    # with open('cipher_text.txt', 'w') as file:
-    #     file.write(ct)
+    cipher_text, keys = nca.encrypt(True)
 
-    nca.encrypt_test()
+    print(f"cipher_text : {cipher_text}")
+    print(f"keys : {keys}")
