@@ -1,3 +1,4 @@
+#Encryptor.py
 import secrets
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
 from cryptography.hazmat.backends import default_backend
@@ -10,7 +11,7 @@ from sympy.abc import x, s
 import numpy as np
 from typing import Tuple, List, Dict
 
-class ImprovedEncryptor:
+class Encryptor:
     def __init__(self, file_path: str, fn_str: str, op_param: Tuple[int, int]):
         self.file_path = file_path
         self.w, self.b = op_param
@@ -137,7 +138,7 @@ if __name__ == '__main__':
     r = 2
     fn = f"x*exp({r}*x)"
     
-    encryptor = ImprovedEncryptor('plain.txt', fn, (173, 833))
+    encryptor = Encryptor('plain.txt', fn, (173, 833))
     cipher_text, keys = encryptor.encrypt(True)
 
     print(f"Cipher text: {cipher_text[:50]}")

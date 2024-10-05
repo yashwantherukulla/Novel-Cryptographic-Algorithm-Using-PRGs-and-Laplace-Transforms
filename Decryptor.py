@@ -1,3 +1,4 @@
+#Decryptor.py
 import random
 from math import factorial
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms
@@ -9,7 +10,7 @@ from sympy.abc import x, s
 import numpy as np
 from typing import Tuple, List, Dict
 
-class ImprovedDecryptor:
+class Decryptor:
     def __init__(self, file_path: str, fn_str: str, op_param: Tuple[int, int], PRS_seed: int, quotients: List[int]):
         self.file_path = file_path
         self.w, self.b = op_param
@@ -125,7 +126,7 @@ if __name__ == '__main__':
     with open('quotients.txt', 'r') as file:
         quotients = [int(x) for x in file.readlines()]
 
-    decryptor = ImprovedDecryptor('cipher.txt', fn, (173, 833), PRS_seed, quotients)
+    decryptor = Decryptor('cipher.txt', fn, (173, 833), PRS_seed, quotients)
     decrypted_text = decryptor.decrypt()
 
     print(f"Decrypted text: {decrypted_text[:50]}")
