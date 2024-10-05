@@ -1,0 +1,10 @@
+plain text: SIR
+Cipher text: Jg-
+PRS seed: 91071559594718568943636385885544251056622413967239222
+quotients: [4458, 253, 28506438]
+
+plain text: AKT
+Cipher text: A#k
+PRS seed: 207338741187223757243707512
+quotients: [4729, 59, 25308061]
+

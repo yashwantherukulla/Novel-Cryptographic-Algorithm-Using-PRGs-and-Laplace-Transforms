@@ -198,7 +198,7 @@ class Encryptor:
         print(f"b : {self.b}")
         print(f"--------------------")
         print(f"Pseudo Random Sequence : {self.PRS}")
-        print(f"initial operator : {int((self.PRS[:7]) % 7)+1}")
+        print(f"initial operator : {(int((self.PRS[:7])) % 7)+1}")
         print(f"all operators : {self.ops}")
 
         print("--------------------")
@@ -241,3 +241,4 @@ if __name__ == '__main__':
 
     print(f"cipher_text : {cipher_text}")
     print(f"keys : {keys}")
+    # nca.encrypt_test()
