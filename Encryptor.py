@@ -106,7 +106,7 @@ class Encryptor:
         lt = self.__laplace_trans(mc_exp)[0]
         return [float(term.as_coeff_mul(s)[0]) for term in lt.as_ordered_terms()]
 
-    def encrypt(self, write_to_file: bool = True) -> Tuple[str, Dict]:
+    def encrypt(self, write_to_file: bool = False) -> Tuple[str, Dict]:
         enc_no_shuff, skips = self.__get_encoded_wo_shuffle()
         enc_shuff = self.__get_shuffled(enc_no_shuff, skips)
         enc_shuff = np.array(enc_shuff)
