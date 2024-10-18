@@ -11,9 +11,9 @@ import numpy as np
 from typing import Tuple, List, Dict
 
 class Decryptor:
-    def __init__(self, file_path: str, fn_str: str, op_param: Tuple[int, int], PRS_seed: int, quotients: List[int]):
+    def __init__(self, file_path: str, fn_str: str, op_param: Tuple[int, int, int], PRS_seed: int, quotients: List[int]):
         self.file_path = file_path
-        self.w, self.b = op_param
+        self.init_op_param, self.w, self.b = op_param
         self.fn_str = fn_str
         self.cipher_text = self.__get_text_from_file()
         self.PRS_seed = PRS_seed
@@ -26,7 +26,7 @@ class Decryptor:
             return file.read()
 
     def __get_seq_len(self) -> int:
-        return len(self.cipher_text) * 7 + 7
+        return len(self.cipher_text) * 7 + self.init_op_param
 
     def __gen_PRS(self, seq_len: int) -> str:
         if seq_len < 4300 and seq_len > 0:
@@ -46,7 +46,7 @@ class Decryptor:
     def __get_ops(self) -> List[int]:
         cipher_txt_len = len(self.cipher_text)
         ops = [0] * cipher_txt_len
-        ops[0] = (int(self.PRS[:7]) % 7) + 1
+        ops[0] = (int(self.PRS[:self.init_op_param]) % self.init_op_param) + 1
         for i in range(1, cipher_txt_len):
             ops[i] = (self.w * ops[i-1] + self.b) % (2**32)
         return ops
@@ -56,7 +56,7 @@ class Decryptor:
         skipped_chunks = 0
         i = 0
         while len(chunks) < len(self.cipher_text):
-            chunk = self.PRS[7+(3*i):7+(3*i+3)]
+            chunk = self.PRS[self.init_op_param+(3*i):self.init_op_param+(3*i+3)]
             if chunk != "000":
                 chunks.append(int(chunk))
             else:
@@ -65,7 +65,7 @@ class Decryptor:
         return chunks, skipped_chunks
 
     def __get_unshuffled(self, arr: List[int], skipped_chunks: int) -> List[int]:
-        remaining_digits = self.PRS[(7+3*(len(self.cipher_text)+skipped_chunks)):]
+        remaining_digits = self.PRS[(self.init_op_param+3*(len(self.cipher_text)+skipped_chunks)):]
         shuffle_seed = int(int(remaining_digits[:4300]) % factorial(len(self.cipher_text)) + 1)
         random.seed(shuffle_seed)
         indices = list(range(len(arr)))
@@ -126,7 +126,7 @@ if __name__ == '__main__':
     with open('quotients.txt', 'r') as file:
         quotients = [int(x) for x in file.readlines()]
 
-    decryptor = Decryptor('cipher.txt', fn, (173, 833), PRS_seed, quotients)
+    decryptor = Decryptor('cipher.txt', fn, (157, 173, 833), PRS_seed, quotients)
     decrypted_text = decryptor.decrypt()
 
     print(f"Decrypted text: {decrypted_text[:50]}")

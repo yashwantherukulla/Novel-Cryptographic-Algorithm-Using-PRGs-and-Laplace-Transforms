@@ -12,9 +12,9 @@ import numpy as np
 from typing import Tuple, List, Dict
 
 class Encryptor:
-    def __init__(self, file_path: str, fn_str: str, op_param: Tuple[int, int]):
+    def __init__(self, file_path: str, fn_str: str, op_param: Tuple[int, int, int]):
         self.file_path = file_path
-        self.w, self.b = op_param
+        self.init_op_param, self.w, self.b = op_param
         self.fn_str = fn_str
         self.plain_txt = self.__get_text_from_file()
         self.PRS_seed = None
@@ -56,12 +56,12 @@ class Encryptor:
             return file.read()
 
     def __get_seq_len(self) -> int:
-        return len(self.plain_txt) * 7 + 7
+        return len(self.plain_txt) * 7 + self.init_op_param
 
     def __get_ops(self) -> List[int]:
         plain_txt_len = len(self.plain_txt)
         ops = [0] * plain_txt_len
-        ops[0] = (int(self.PRS[:7]) % 7) + 1
+        ops[0] = (int(self.PRS[:self.init_op_param]) % self.init_op_param) + 1
         for i in range(1, plain_txt_len):
             ops[i] = (self.w * ops[i-1] + self.b) % (2**32) 
         return ops
@@ -71,7 +71,7 @@ class Encryptor:
         skipped_chunks = 0
         i = 0
         while len(enc_wo_s) < len(self.plain_txt):
-            chunk = self.PRS[7+(3*i):7+(3*i+3)]
+            chunk = self.PRS[self.init_op_param+(3*i):self.init_op_param+(3*i+3)]
             if chunk != "000":
                 chunk = int(chunk)
                 ascii_val = ord(self.plain_txt[i-skipped_chunks])
@@ -82,7 +82,7 @@ class Encryptor:
         return enc_wo_s, skipped_chunks
 
     def __get_shuffled(self, enc_wo_s: List[int], skipped_chunks: int) -> List[int]:
-        remaining_digits = self.PRS[(7+3*(len(self.plain_txt)+skipped_chunks)):]
+        remaining_digits = self.PRS[(self.init_op_param+3*(len(self.plain_txt)+skipped_chunks)):]
         shuffle_seed = int(int(remaining_digits[:4300]) % factorial(len(self.plain_txt)) + 1)
         random.seed(shuffle_seed)
         enc_w_s = enc_wo_s.copy()
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     r = 2
     fn = f"x*exp({r}*x)"
     
-    encryptor = Encryptor('plain.txt', fn, (173, 833))
+    encryptor = Encryptor('plain.txt', fn, (157, 173, 833))
     cipher_text, keys = encryptor.encrypt(True)
 
     print(f"Cipher text: {cipher_text[:50]}")

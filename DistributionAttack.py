@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from collections import Counter
 from scipy.stats import entropy
-from Encryptor import Encryptor  # Make sure this is in the same directory
+from Encryptor import Encryptor 
 
 def generate_random_text(max_length=100):
     """Generate a random piece of text with a maximum length."""
@@ -18,7 +18,7 @@ def generate_text_files(num_files, output_dir='distribution/plain_texts'):
     file_paths = []
     for i in range(num_files):
         file_path = os.path.join(output_dir, f'plain_{i}.txt')
-        with open(file_path, 'w') as f:  # 'w' mode will overwrite existing files
+        with open(file_path, 'w') as f:
             f.write(generate_random_text())
         file_paths.append(file_path)
     return file_paths
@@ -30,11 +30,11 @@ def encrypt_files(file_paths, output_dir='distribution/encrypted_texts'):
     for file_path in file_paths:
         r = 2
         fn = f"x*exp({r}*x)"
-        encryptor = Encryptor(file_path, fn, (173, 833))
+        encryptor = Encryptor(file_path, fn, (157, 173, 833))
         cipher_text, keys = encryptor.encrypt(False)
         
         output_path = os.path.join(output_dir, f'encrypted_{os.path.basename(file_path)}')
-        with open(output_path, 'w') as f:  # 'w' mode will overwrite existing files
+        with open(output_path, 'w') as f: 
             f.write(cipher_text)
         encrypted_paths.append(output_path)
     return encrypted_paths
