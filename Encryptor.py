@@ -36,15 +36,6 @@ class Encryptor:
         
             prn_str = str(abs(prn))
         
-        # prn_str = ""
-        # bytes_needed = (seq_len + 1) // 2  # Ensure enough bytes are generated
-        # chunk_size = 1024  # Process in chunks to avoid large integer conversion
-        
-        # for _ in range(0, bytes_needed, chunk_size):
-        #     chunk = encryptor.update(bytes(min(chunk_size, bytes_needed)))
-        #     prn_str += str(abs(int.from_bytes(chunk, 'big')))
-        #     bytes_needed -= chunk_size
-        
             if len(prn_str) > seq_len:
                 return prn_str[:seq_len]
             return prn_str.zfill(seq_len)
@@ -134,12 +125,71 @@ class Encryptor:
 
         return cipher_text, keys
 
+    def example_encrypt(self, write_to_file: bool = False, verbose_file: str = "verbose_encrypt.txt") -> Tuple[str, Dict]:
+        """A verbose version of encrypt that outputs intermediate steps to a text file."""
+        with open(verbose_file, 'w') as vf:
+            vf.write("ENCRYPTION PROCESS - VERBOSE OUTPUT\n")
+            vf.write("==================================\n\n")
+            
+            # Get encoded values before shuffling
+            vf.write("Step 1: Encoding without shuffling\n")
+            enc_no_shuff, skips = self.__get_encoded_wo_shuffle()
+            vf.write(f"Encoded values (pre-shuffle): {enc_no_shuff}\n")
+            vf.write(f"Skipped chunks: {skips}\n\n")
+            
+            # Shuffle values
+            vf.write("Step 2: Shuffling encoded values\n")
+            enc_shuff = self.__get_shuffled(enc_no_shuff, skips)
+            vf.write(f"Shuffled encoded values: {enc_shuff}\n\n")
+            
+            # Convert to numpy arrays
+            enc_shuff = np.array(enc_shuff)
+            
+            # Calculate Laplace coefficients
+            vf.write("Step 3: Calculating Laplace transform coefficients\n")
+            lt_co_eff = np.array(self.__get_laplace_co_effs(len(enc_shuff)))
+            vf.write(f"Laplace coefficients: {lt_co_eff}\n\n")
+            
+            # Apply coefficients
+            vf.write("Step 4: Applying Laplace coefficients to shuffled values\n")
+            enc_arr = enc_shuff * lt_co_eff
+            vf.write(f"Values after applying coefficients: {enc_arr}\n\n")
+
+            # Convert to cipher text
+            vf.write("Step 5: Converting to cipher text\n")
+            all_Q = []
+            cipher_text = ""
+            
+            vf.write("Value -> (Quotient, Remainder) -> ASCII char\n")
+            for i in enc_arr:
+                R = int(i % 94)
+                Q = int(i // 94)
+                letter = chr(R + 33)
+                all_Q.append(Q)
+                cipher_text += letter
+                vf.write(f"{i:.2f} -> ({Q}, {R}) -> '{letter}'\n")
+            
+            vf.write(f"\nFinal cipher text: {cipher_text}\n")
+            vf.write(f"PRS seed used: {self.PRS_seed}\n")
+            
+            keys = {
+                'PRS_seed': self.PRS_seed,
+                'Quotients': all_Q,
+            }
+
+            if write_to_file:
+                with open('cipher.txt', 'w') as file:
+                    file.write(cipher_text)
+
+            return cipher_text, keys
+
 if __name__ == '__main__':
     r = 2
     fn = f"x*exp({r}*x)"
     
+    # Use the example_encrypt method instead of encrypt
     encryptor = Encryptor('plain.txt', fn, (157, 173, 833))
-    cipher_text, keys = encryptor.encrypt(True)
+    cipher_text, keys = encryptor.example_encrypt(True, "verbose_encryption_output.txt")
 
     print(f"Cipher text: {cipher_text[:50]}")
     print(f"PRS seed: {keys['PRS_seed']}")
@@ -149,3 +199,5 @@ if __name__ == '__main__':
     with open('quotients.txt', 'w') as file:
         for i in keys['Quotients']:
             file.write(str(i) + '\n')
+    
+    print("Verbose encryption details written to verbose_encryption_output.txt")

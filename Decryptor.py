@@ -113,6 +113,57 @@ class Decryptor:
 
         return ''.join(plain_chars)
 
+    def example_decrypt(self, verbose_file: str = "verbose_decrypt.txt") -> str:
+        """A verbose version of decrypt that outputs intermediate steps to a text file."""
+        with open(verbose_file, 'w') as vf:
+            vf.write("DECRYPTION PROCESS - VERBOSE OUTPUT\n")
+            vf.write("==================================\n\n")
+            
+            # Step 1: Reconstructing the encrypted array
+            vf.write("Step 1: Reconstructing the encrypted array\n")
+            remainders = np.array([ord(c) - 33 for c in self.cipher_text])
+            vf.write(f"Remainders (from cipher text): {remainders}\n")
+            vf.write(f"Quotients (from key): {self.quotients[:10]}...\n")
+            
+            enc_arr = np.array(self.quotients) * 94 + remainders
+            vf.write(f"Reconstructed encrypted array: {enc_arr[:10]}...\n\n")
+
+            # Step 2: Undoing the Laplace transform
+            vf.write("Step 2: Undoing the Laplace transform\n")
+            lt_co_eff = np.array(self.__get_laplace_co_effs(len(enc_arr)))
+            vf.write(f"Laplace coefficients: {lt_co_eff[:10]}...\n")
+            
+            dec_arr = enc_arr / lt_co_eff
+            vf.write(f"Array after undoing Laplace transform: {dec_arr[:10]}...\n\n")
+
+            # Step 3: Undoing the shuffling
+            vf.write("Step 3: Undoing the shuffling\n")
+            chunks, skipped_chunks = self.__get_chunks_for_decoding()
+            vf.write(f"Chunks from PRS: {chunks[:10]}...\n")
+            vf.write(f"Skipped chunks count: {skipped_chunks}\n")
+            
+            unshuffled_arr = self.__get_unshuffled(dec_arr.tolist(), skipped_chunks)
+            vf.write(f"Unshuffled array: {unshuffled_arr[:10]}...\n\n")
+
+            # Step 4: Undoing the PRS-based encoding
+            vf.write("Step 4: Undoing the PRS-based encoding\n")
+            vf.write("Value -> ASCII value -> Character\n")
+            
+            plain_chars = []
+            j = 0
+            for i, val in enumerate(unshuffled_arr):
+                if chunks[i] != 0:  # Corresponding to chunk != "000" in encryption
+                    ascii_val = int(round(val - (chunks[i] * self.ops[j])))
+                    char = chr(ascii_val)
+                    plain_chars.append(char)
+                    vf.write(f"{val:.2f} -> {ascii_val} -> '{char}'\n")
+                    j += 1
+
+            decrypted_text = ''.join(plain_chars)
+            vf.write(f"\nFinal decrypted text: {decrypted_text[:100]}...\n")
+            
+            return decrypted_text
+
 if __name__ == '__main__':
     r = 2
     fn = f"x*exp({r}*x)"
@@ -127,7 +178,7 @@ if __name__ == '__main__':
         quotients = [int(x) for x in file.readlines()]
 
     decryptor = Decryptor('cipher.txt', fn, (157, 173, 833), PRS_seed, quotients)
-    decrypted_text = decryptor.decrypt()
+    decrypted_text = decryptor.example_decrypt("verbose_decryption_output.txt")
 
     print(f"Decrypted text: {decrypted_text[:50]}")
 
@@ -135,3 +186,4 @@ if __name__ == '__main__':
         file.write(decrypted_text)
 
     print("Decryption completed and saved to 'decrypted.txt'")
+    print("Verbose decryption details written to verbose_decryption_output.txt")
